@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates Security Groups for Load Balancer and EC2 instances.
+
+Parameters:
+  VPCId:
+    Type: String
+    Description: The ID of the VPC where the Security Groups will be created.
+
+Resources:
+  # Security Group for Load Balancer
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for the Load Balancer allowing HTTP traffic.
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0 # Allow HTTP access from anywhere
+      Tags:
+        - Key: Name
+          Value: ALBSecurityGroup
+
+  # Security Group for EC2 Instances
+  EC2InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for EC2 instances allowing HTTP and SSH access.
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0 # Allow SSH access (restrict to your IP in production)
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup # Allow traffic only from the Load Balancer
+      Tags:
+        - Key: Name
+          Value: EC2InstanceSecurityGroup
+
+Outputs:
+  ALBSecurityGroupId:
+    Description: Security Group ID for the Load Balancer
+    Value: !Ref ALBSecurityGroup
+
+  EC2SecurityGroupId:
+    Description: Security Group ID for the EC2 instances
+    Value: !Ref EC2InstanceSecurityGroup

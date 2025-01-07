@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates an Application Load Balancer, Target Group, and Listener for the web application.
+
+Parameters:
+  Subnet1Id:
+    Type: String
+    Description: The ID of the first subnet to attach to the Load Balancer.
+  Subnet2Id:
+    Type: String
+    Description: The ID of the second subnet to attach to the Load Balancer.
+  ALBSecurityGroupId:
+    Type: String
+    Description: The Security Group ID for the Load Balancer.
+  VPCId:
+    Type: String
+    Description: The ID of the VPC where the Load Balancer will be created.
+
+Resources:
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: WebAppLoadBalancer
+      Scheme: internet-facing
+      Subnets:
+        - !Ref Subnet1Id
+        - !Ref Subnet2Id
+      SecurityGroups:
+        - !Ref ALBSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: WebAppLoadBalancer
+
+  # Target Group
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: WebAppTargetGroup
+      TargetType: instance
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPCId
+      HealthCheckEnabled: true
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+
+  # Listener
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+Outputs:
+  LoadBalancerDNSName:
+    Description: DNS Name of the Application Load Balancer
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+
+  TargetGroupARN:
+    Description: ARN of the Target Group
+    Value: !Ref ALBTargetGroup

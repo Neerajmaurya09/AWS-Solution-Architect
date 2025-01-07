@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Configuration variables
+STACK_NAME="my-web-app-stack"
+TEMPLATE_FILE="path/to/your/template.yaml" # Replace with your template path
+KEY_NAME="win-key" # Replace with your key pair name
+INSTANCE_TYPE="t3.micro" # Or another instance type
+ENVIRONMENT="Development" # Example environment parameter
+REGION="ap-south-1" # Set your AWS region
+
+# Create parameters JSON file
+cat << EOF > parameters.json
+[
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "${KEY_NAME}"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "${INSTANCE_TYPE}"
+  },
+    {
+    "ParameterKey": "Environment",
+    "ParameterValue": "${ENVIRONMENT}"
+  }
+]
+EOF
+
+# Create the CloudFormation stack
+echo "Creating CloudFormation stack: ${STACK_NAME}"
+
+stack_output=$(aws cloudformation create-stack \
+    --stack-name "${STACK_NAME}" \
+    --template-body file://"${TEMPLATE_FILE}" \
+    --parameters file://parameters.json \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --region "${REGION}" 2>&1)
+
+# Check for errors
+if [[ $(echo "$stack_output" | jq -r '.StackId') ]]; then
+  echo "Stack creation initiated successfully. Stack ID: $(echo "$stack_output" | jq -r '.StackId')"
+
+    # Wait for stack creation to complete (optional)
+    echo "Waiting for stack creation to complete..."
+    aws cloudformation wait stack-create-complete --stack-name "${STACK_NAME}" --region "${REGION}"
+
+    # Get outputs
+    echo "Getting Stack Outputs..."
+    outputs=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --region "${REGION}" | jq -r '.Stacks[0].Outputs[] | [.OutputKey, .OutputValue] | @tsv')
+    echo "$outputs"
+else
+  echo "Stack creation failed:"
+  echo "$stack_output"
+  exit 1
+fi
+
+# Clean up parameter file
+rm parameters.json
+
+echo "Deployment complete."
